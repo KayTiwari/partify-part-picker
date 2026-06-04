@@ -3,16 +3,20 @@
 
   console.log("%cYou should hire me ;)", "font-size:15px;font-weight:700;color:#29b6e8;");
 
-  var STEPS = ["year", "make", "model", "productType"];
-  var REQUIRED = ["year", "make", "model"];
-  var STORE_BASE = "https://partifyusa.com/collections/";
+  var STORE = "https://partifyusa.com";
+  var STORE_BASE = STORE + "/collections/";
+  var STEPS = ["make", "model", "year", "productType"];
+  var REQUIRED = ["make", "model", "year"];
   var GARAGE_KEY = "partify.garage";
   var PLACEHOLDERS = {
-    year: "Select year",
     make: "Select make",
     model: "Select model",
+    year: "Select year",
     productType: "All parts",
   };
+
+  var VI = (typeof VEHICLE_INDEX !== "undefined") ? VEHICLE_INDEX : {};
+  var vehicleData = null;
 
   function Combobox(root, onCommit) {
     this.root = root;
@@ -42,7 +46,13 @@
   Combobox.prototype.setOptions = function (values) {
     this.options = values;
     this.input.disabled = values.length === 0;
-    if (values.length === 0) this.input.placeholder = PLACEHOLDERS[this.step];
+    this.input.placeholder = PLACEHOLDERS[this.step];
+  };
+
+  Combobox.prototype.setLoading = function () {
+    this.options = [];
+    this.input.disabled = true;
+    this.input.placeholder = "Loading…";
   };
 
   Combobox.prototype.clear = function () {
@@ -159,58 +169,117 @@
   var garageVehicle = document.getElementById("garage-vehicle");
   var combos = {};
 
-  function onCommit(changedStep) {
-    var startIndex = STEPS.indexOf(changedStep) + 1;
-    for (var i = startIndex; i < STEPS.length; i++) {
-      combos[STEPS[i]].clear();
-    }
-    for (var j = startIndex; j < STEPS.length; j++) {
-      combos[STEPS[j]].setOptions(optionsFor(STEPS[j]));
-    }
-    status.textContent = "";
-    afterChange();
-  }
-
   STEPS.forEach(function (step) {
     var root = form.querySelector('.combo[data-step="' + step + '"]');
     combos[step] = new Combobox(root, onCommit);
   });
 
-  function selectionsBefore(step) {
-    var picked = {};
-    for (var i = 0; i < STEPS.length; i++) {
-      if (STEPS[i] === step) break;
-      var value = combos[STEPS[i]].value;
-      if (value) picked[STEPS[i]] = value;
-    }
-    return picked;
+  function makesList() {
+    return Object.keys(VI).sort();
   }
 
-  function rowsMatching(filters) {
-    return FITMENT_DATA.filter(function (row) {
-      return Object.keys(filters).every(function (key) {
-        return String(row[key]) === String(filters[key]);
+  function modelsFor(make) {
+    return (VI[make] || []).map(function (x) { return x.model; });
+  }
+
+  function handleFor(make, model) {
+    var arr = VI[make] || [];
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].model === model) return arr[i].handle;
+    }
+    return null;
+  }
+
+  function partsFor(year) {
+    if (!vehicleData || !vehicleData.partsByYear[year]) return [];
+    return Object.keys(vehicleData.partsByYear[year]).sort();
+  }
+
+  function fetchVehicle(handle) {
+    var products = [];
+    function page(n) {
+      return fetch(STORE_BASE + handle + "/products.json?limit=250&page=" + n)
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          var list = data.products || [];
+          products = products.concat(list);
+          if (list.length === 250 && n < 100) return page(n + 1);
+          return products;
+        });
+    }
+    return page(1).then(function (all) {
+      var partsByYear = {}, countByYearPart = {}, productCountByYear = {};
+      all.forEach(function (p) {
+        var pt = (p.product_type || "").trim();
+        if (!pt) return;
+        var tags = (p.tags || []).map(String);
+        var years = tags
+          .filter(function (t) { return t.indexOf("Year_") === 0; })
+          .map(function (t) { return parseInt(t.slice(5), 10); })
+          .filter(function (y) { return !isNaN(y); });
+        years.forEach(function (y) {
+          if (!partsByYear[y]) partsByYear[y] = {};
+          partsByYear[y][pt] = true;
+          if (!countByYearPart[y]) countByYearPart[y] = {};
+          countByYearPart[y][pt] = (countByYearPart[y][pt] || 0) + 1;
+          productCountByYear[y] = (productCountByYear[y] || 0) + 1;
+        });
       });
+      var years = Object.keys(partsByYear).map(Number).sort(function (a, b) { return b - a; });
+      return {
+        years: years,
+        partsByYear: partsByYear,
+        countByYearPart: countByYearPart,
+        productCountByYear: productCountByYear,
+      };
     });
   }
 
-  function optionsFor(step) {
-    var index = STEPS.indexOf(step);
-    if (index > 0 && combos[STEPS[index - 1]].value === "") return [];
-    var rows = rowsMatching(selectionsBefore(step));
-    var seen = {};
-    rows.forEach(function (row) { seen[row[step]] = true; });
-    var values = Object.keys(seen);
-    if (step === "year") {
-      values.sort(function (a, b) { return Number(b) - Number(a); });
-    } else {
-      values.sort();
+  function onCommit(changedStep) {
+    var startIndex = STEPS.indexOf(changedStep) + 1;
+    for (var i = startIndex; i < STEPS.length; i++) {
+      combos[STEPS[i]].clear();
     }
-    return values;
+    status.textContent = "";
+
+    if (changedStep === "make") {
+      combos.model.setOptions(modelsFor(combos.make.value));
+      combos.year.setOptions([]);
+      combos.productType.setOptions([]);
+      vehicleData = null;
+      afterChange();
+    } else if (changedStep === "model") {
+      loadModel();
+    } else if (changedStep === "year") {
+      combos.productType.setOptions(partsFor(combos.year.value));
+      afterChange();
+    } else {
+      afterChange();
+    }
+  }
+
+  function loadModel() {
+    combos.year.setLoading();
+    combos.productType.setOptions([]);
+    vehicleData = null;
+    afterChange();
+    var handle = handleFor(combos.make.value, combos.model.value);
+    fetchVehicle(handle).then(function (data) {
+      vehicleData = data;
+      combos.year.setOptions(data.years.map(String));
+      afterChange();
+    }).catch(function () {
+      combos.year.setOptions([]);
+      status.textContent = "Couldn't load parts for that vehicle. Please try again.";
+      afterChange();
+    });
   }
 
   function vehicleChosen() {
-    return REQUIRED.every(function (step) { return combos[step].value !== ""; });
+    return Boolean(combos.make.value && combos.model.value && combos.year.value && vehicleData);
   }
 
   function updateSubmit() {
@@ -222,16 +291,12 @@
       count.textContent = "";
       return;
     }
-    var rows = rowsMatching({
-      year: combos.year.value,
-      make: combos.make.value,
-      model: combos.model.value,
-    });
-    var types = {};
-    rows.forEach(function (row) { types[row.productType] = true; });
-    var n = Object.keys(types).length;
+    var y = combos.year.value;
+    var pt = combos.productType.value;
+    var n = pt ? ((vehicleData.countByYearPart[y] || {})[pt] || 0)
+               : (vehicleData.productCountByYear[y] || 0);
     count.textContent = n + (n === 1 ? " part fits your " : " parts fit your ") +
-      combos.year.value + " " + combos.make.value + " " + combos.model.value;
+      [combos.year.value, combos.make.value, combos.model.value].join(" ");
   }
 
   function syncUrl() {
@@ -267,42 +332,59 @@
 
   function applyState(state) {
     STEPS.forEach(function (step) { combos[step].clear(); });
-    for (var i = 0; i < STEPS.length; i++) {
-      var step = STEPS[i];
-      var options = optionsFor(step);
-      combos[step].setOptions(options);
-      var value = state[step];
-      if (value != null && options.indexOf(String(value)) !== -1) {
-        combos[step].value = String(value);
-        combos[step].input.value = String(value);
-      } else {
-        for (var j = i + 1; j < STEPS.length; j++) {
-          combos[STEPS[j]].setOptions(optionsFor(STEPS[j]));
-        }
-        break;
-      }
-    }
-    status.textContent = "";
+    combos.make.setOptions(makesList());
+    combos.model.setOptions([]);
+    combos.year.setOptions([]);
+    combos.productType.setOptions([]);
+    vehicleData = null;
+
+    if (!state.make || makesList().indexOf(state.make) === -1) { afterChange(); return; }
+    combos.make.value = state.make;
+    combos.make.input.value = state.make;
+    var models = modelsFor(state.make);
+    combos.model.setOptions(models);
+
+    if (!state.model || models.indexOf(state.model) === -1) { afterChange(); return; }
+    combos.model.value = state.model;
+    combos.model.input.value = state.model;
+
+    combos.year.setLoading();
     afterChange();
+    fetchVehicle(handleFor(state.make, state.model)).then(function (data) {
+      vehicleData = data;
+      var years = data.years.map(String);
+      combos.year.setOptions(years);
+      if (state.year && years.indexOf(String(state.year)) !== -1) {
+        combos.year.value = String(state.year);
+        combos.year.input.value = String(state.year);
+        var parts = partsFor(state.year);
+        combos.productType.setOptions(parts);
+        if (state.productType && parts.indexOf(state.productType) !== -1) {
+          combos.productType.value = state.productType;
+          combos.productType.input.value = state.productType;
+        }
+      }
+      afterChange();
+    }).catch(function () {
+      combos.year.setOptions([]);
+      status.textContent = "Couldn't load that vehicle.";
+      afterChange();
+    });
   }
 
   function buildUrl() {
-    var slug = [combos.make.value, combos.model.value]
-      .join(" ")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    var url = STORE_BASE + slug;
-    if (combos.productType.value) {
-      var params = new URLSearchParams();
-      params.set("filter.p.product_type", combos.productType.value);
-      url += "?" + params.toString();
-    }
+    var handle = handleFor(combos.make.value, combos.model.value);
+    var url = STORE_BASE + handle;
+    var params = new URLSearchParams();
+    if (combos.year.value) params.set("filter.p.tag", "Year_" + combos.year.value);
+    if (combos.productType.value) params.set("filter.p.product_type", combos.productType.value);
+    var query = params.toString();
+    if (query) url += "?" + query;
     return url;
   }
 
   function isVehicle(state) {
-    return Boolean(state && state.year && state.make && state.model);
+    return Boolean(state && state.make && state.model && state.year);
   }
 
   var savedVehicle = null;
@@ -310,7 +392,7 @@
     var raw = window.localStorage.getItem(GARAGE_KEY);
     var parsed = raw ? JSON.parse(raw) : null;
     if (isVehicle(parsed)) {
-      savedVehicle = { year: parsed.year, make: parsed.make, model: parsed.model };
+      savedVehicle = { make: parsed.make, model: parsed.model, year: parsed.year };
     }
   } catch (e) {}
 
@@ -342,9 +424,9 @@
   document.getElementById("garage-use").addEventListener("click", function () {
     if (savedVehicle) {
       applyState({
-        year: savedVehicle.year,
         make: savedVehicle.make,
         model: savedVehicle.model,
+        year: savedVehicle.year,
       });
     }
   });
@@ -362,9 +444,9 @@
     event.preventDefault();
     if (submit.disabled) return;
     setSavedVehicle({
-      year: combos.year.value,
       make: combos.make.value,
       model: combos.model.value,
+      year: combos.year.value,
     });
     var url = buildUrl();
     var link = document.createElement("a");
@@ -384,7 +466,7 @@
     });
   });
 
-  combos.year.setOptions(optionsFor("year"));
+  combos.make.setOptions(makesList());
   var initial = readUrlState();
   if (Object.keys(initial).length) {
     applyState(initial);

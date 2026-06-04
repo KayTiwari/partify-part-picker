@@ -34,21 +34,11 @@
 
     <form id="fitment-form" class="finder__form" novalidate>
       <div class="field">
-        <label id="year-label" for="year-input">Year</label>
-        <div class="combo" data-step="year">
-          <input class="combo__input" id="year-input" type="text" role="combobox"
-            aria-expanded="false" aria-autocomplete="list" aria-controls="year-list"
-            aria-labelledby="year-label" autocomplete="off" placeholder="Select year">
-          <ul class="combo__list" id="year-list" role="listbox" aria-label="Year" hidden></ul>
-        </div>
-      </div>
-
-      <div class="field">
         <label id="make-label" for="make-input">Make</label>
         <div class="combo" data-step="make">
           <input class="combo__input" id="make-input" type="text" role="combobox"
             aria-expanded="false" aria-autocomplete="list" aria-controls="make-list"
-            aria-labelledby="make-label" autocomplete="off" placeholder="Select make" disabled>
+            aria-labelledby="make-label" autocomplete="off" placeholder="Select make">
           <ul class="combo__list" id="make-list" role="listbox" aria-label="Make" hidden></ul>
         </div>
       </div>
@@ -60,6 +50,16 @@
             aria-expanded="false" aria-autocomplete="list" aria-controls="model-list"
             aria-labelledby="model-label" autocomplete="off" placeholder="Select model" disabled>
           <ul class="combo__list" id="model-list" role="listbox" aria-label="Model" hidden></ul>
+        </div>
+      </div>
+
+      <div class="field">
+        <label id="year-label" for="year-input">Year</label>
+        <div class="combo" data-step="year">
+          <input class="combo__input" id="year-input" type="text" role="combobox"
+            aria-expanded="false" aria-autocomplete="list" aria-controls="year-list"
+            aria-labelledby="year-label" autocomplete="off" placeholder="Select year" disabled>
+          <ul class="combo__list" id="year-list" role="listbox" aria-label="Year" hidden></ul>
         </div>
       </div>
 
@@ -82,7 +82,7 @@
     <p id="status" class="finder__status" role="status" aria-live="polite"></p>
   </main>
 
-  <script src="data.js"></script>
+  <script src="vehicles.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
