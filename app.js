@@ -18,6 +18,7 @@
   var VI = (typeof VEHICLE_INDEX !== "undefined") ? VEHICLE_INDEX : {};
   var vehicleData = null;
   var loadToken = 0;
+  var noPartsForYear = false;
 
   function Combobox(root, onCommit) {
     this.root = root;
@@ -35,8 +36,8 @@
 
   Combobox.prototype.bind = function () {
     var self = this;
-    this.input.addEventListener("focus", function () { self.open(""); });
-    this.input.addEventListener("click", function () { self.open(""); });
+    this.input.addEventListener("focus", function () { self.open(""); self.input.select(); });
+    this.input.addEventListener("click", function () { self.open(""); self.input.select(); });
     this.input.addEventListener("input", function () { self.open(self.input.value); });
     this.input.addEventListener("keydown", function (e) { self.onKeydown(e); });
     this.input.addEventListener("blur", function () {
@@ -233,6 +234,7 @@
 
   function onCommit(changedStep) {
     loadToken++;
+    noPartsForYear = false;
     var startIndex = STEPS.indexOf(changedStep) + 1;
     for (var i = startIndex; i < STEPS.length; i++) {
       combos[STEPS[i]].clear();
@@ -267,12 +269,11 @@
       if (token !== loadToken) return;
       if (data.total === 0) {
         vehicleData = null;
+        noPartsForYear = true;
         combos.productType.setOptions([]);
-        status.textContent = "No parts listed for this year yet.";
       } else {
         vehicleData = data;
         combos.productType.setOptions(data.parts);
-        status.textContent = "";
       }
       afterChange();
     }).catch(function () {
@@ -293,6 +294,10 @@
   }
 
   function updateCount() {
+    if (noPartsForYear) {
+      count.textContent = "No parts listed for this year yet.";
+      return;
+    }
     if (!vehicleChosen()) {
       count.textContent = "";
       return;
@@ -341,6 +346,7 @@
 
   function applyState(state) {
     var token = ++loadToken;
+    noPartsForYear = false;
     STEPS.forEach(function (step) { combos[step].clear(); });
     combos.make.setOptions(makesList());
     combos.model.setOptions([]);
@@ -370,8 +376,8 @@
       if (token !== loadToken) return;
       if (data.total === 0) {
         vehicleData = null;
+        noPartsForYear = true;
         combos.productType.setOptions([]);
-        status.textContent = "No parts listed for this year yet.";
         afterChange();
         return;
       }
