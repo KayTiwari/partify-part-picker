@@ -235,7 +235,9 @@ body {
 }
 
 .finder__submit:hover:not(:disabled) {
-  background: var(--accent-dark);
+  background: linear-gradient(90deg, var(--navy), var(--accent), var(--navy));
+  background-size: 200% 100%;
+  animation: brandbar-slide 4s linear infinite;
   box-shadow: 0 4px 14px rgba(41, 182, 232, 0.4);
 }
 
@@ -328,6 +330,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .garage__label::before { animation: none; }
   .finder__brandbar { animation: none; }
+  .finder__submit:hover:not(:disabled) { animation: none; }
 }
 
 .garage__vehicle {
