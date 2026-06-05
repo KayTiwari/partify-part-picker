@@ -27,7 +27,8 @@ var MODEL_BLOCKLIST = [
   "hoods", "grille", "grilles", "mirror", "mirrors", "light", "lights",
   "headlight", "headlights", "tail", "taillight", "taillights", "door",
   "doors", "liner", "liners", "molding", "moldings", "absorber", "bracket",
-  "panel", "panels", "valance", "spoiler", "skid", "step", "steps",
+  "panel", "panels", "valance", "spoiler", "spoilers", "skid", "step", "steps",
+  "tailgate", "tailgates",
 ];
 
 function isCategory(modelSlug) {
@@ -44,7 +45,7 @@ function smartTitle(slug) {
   }).join(" ").trim();
 }
 
-function parseHandle(handle) {
+function parseMakeModel(handle) {
   for (var i = 0; i < MAKE_SLUGS.length; i++) {
     var s = MAKE_SLUGS[i].slug;
     if (handle.indexOf(s + "-") === 0) {
@@ -56,17 +57,42 @@ function parseHandle(handle) {
   return null;
 }
 
-function sleep(ms) {
-  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+async function fetchText(url) {
+  for (var attempt = 1; attempt <= 5; attempt++) {
+    var res = await fetch(url);
+    if (res.ok) return res.text();
+    if (attempt === 5) throw new Error("HTTP " + res.status + " for " + url);
+    await sleep(attempt * 1500);
+  }
+}
+
+function extractLocs(xml) {
+  var locs = [], re = /<loc>([^<]+)<\/loc>/g, m;
+  while ((m = re.exec(xml)) !== null) locs.push(m[1].replace(/&amp;/g, "&"));
+  return locs;
+}
+
+async function fetchAllHandles() {
+  var index = await fetchText(STORE + "/sitemap.xml");
+  var maps = extractLocs(index).filter(function (u) { return u.indexOf("sitemap_collections_") !== -1; });
+  var handles = [];
+  for (var i = 0; i < maps.length; i++) {
+    var xml = await fetchText(maps[i]);
+    extractLocs(xml).forEach(function (loc) {
+      var mm = loc.match(/\/collections\/([^\/?]+)/);
+      if (mm) handles.push(mm[1]);
+    });
+    if ((i + 1) % 20 === 0) console.log("...sitemap " + (i + 1) + "/" + maps.length);
+  }
+  return handles;
 }
 
 async function firstProduct(handle) {
   for (var attempt = 1; attempt <= 4; attempt++) {
     var res = await fetch(STORE + "/collections/" + handle + "/products.json?limit=1");
-    if (res.ok) {
-      var data = await res.json();
-      return (data.products && data.products[0]) || null;
-    }
+    if (res.ok) { var d = await res.json(); return (d.products && d.products[0]) || null; }
     if (res.status === 429) { await sleep(attempt * 1500); continue; }
     return null;
   }
@@ -74,8 +100,7 @@ async function firstProduct(handle) {
 }
 
 function pickModel(product, modelSlug) {
-  var tags = (product.tags || []).map(String);
-  var models = tags
+  var models = (product.tags || []).map(String)
     .filter(function (t) { return t.indexOf("Model_") === 0; })
     .map(function (t) { return t.slice(6).trim(); });
   for (var i = 0; i < models.length; i++) {
@@ -91,20 +116,22 @@ async function enrich(candidates) {
   for (var i = 0; i < candidates.length; i += BATCH) {
     var batch = candidates.slice(i, i + BATCH);
     var results = await Promise.all(batch.map(function (c) {
-      return firstProduct(c.handle).then(function (p) { return { c: c, p: p }; });
+      var byYear = firstProduct(c.handle).then(function (p) {
+        return p || firstProduct(c.years[0] + "-" + c.handle);
+      });
+      return byYear.then(function (p) { return { c: c, p: p }; });
     }));
     results.forEach(function (r) {
       if (!r.p) return;
-      var model = pickModel(r.p, r.c.modelSlug);
-      if (!model) return;
+      var model = pickModel(r.p, r.c.modelSlug) || smartTitle(r.c.modelSlug);
       var make = r.c.make;
       var key = make + "|" + model;
       if (seen[key]) return;
       seen[key] = true;
       if (!index[make]) index[make] = [];
-      index[make].push({ model: model, handle: r.c.handle });
+      index[make].push({ model: model, handle: r.c.handle, years: r.c.years });
     });
-    if ((i / BATCH) % 20 === 0) console.log("...enriched " + Math.min(i + BATCH, candidates.length) + "/" + candidates.length);
+    if ((i / BATCH) % 25 === 0) console.log("...enriched " + Math.min(i + BATCH, candidates.length) + "/" + candidates.length);
   }
   Object.keys(index).forEach(function (make) {
     index[make].sort(function (a, b) { return a.model.localeCompare(b.model); });
@@ -112,61 +139,40 @@ async function enrich(candidates) {
   return index;
 }
 
-async function fetchText(url) {
-  var res = await fetch(url);
-  if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
-  return res.text();
-}
-
-function extractLocs(xml) {
-  var locs = [];
-  var re = /<loc>([^<]+)<\/loc>/g;
-  var m;
-  while ((m = re.exec(xml)) !== null) locs.push(m[1].replace(/&amp;/g, "&"));
-  return locs;
-}
-
-async function fetchAllHandles() {
-  var index = await fetchText(STORE + "/sitemap.xml");
-  var maps = extractLocs(index).filter(function (u) {
-    return u.indexOf("sitemap_collections_") !== -1;
+function build(handles) {
+  var yearsByBase = {};
+  handles.forEach(function (h) {
+    var m = h.match(/^(\d{4})-(.+)$/);
+    if (!m) return;
+    var base = m[2];
+    (yearsByBase[base] = yearsByBase[base] || {})[m[1]] = true;
   });
-  var handles = [];
-  for (var i = 0; i < maps.length; i++) {
-    var xml = await fetchText(maps[i]);
-    extractLocs(xml).forEach(function (loc) {
-      var mm = loc.match(/\/collections\/([^\/?]+)/);
-      if (mm) handles.push(mm[1]);
-    });
-    console.log("...sitemap " + (i + 1) + "/" + maps.length + " (" + handles.length + " handles)");
-  }
-  return handles;
-}
-
-function candidatesFrom(handles) {
   var seen = {};
-  var out = [];
+  var candidates = [];
   handles.forEach(function (h) {
     if (/^[0-9]/.test(h) || seen[h]) return;
     seen[h] = true;
-    var parsed = parseHandle(h);
-    if (parsed) out.push(parsed);
+    var years = yearsByBase[h];
+    if (!years) return;                       // no year-collections -> unusable here
+    var parsed = parseMakeModel(h);
+    if (!parsed) return;
+    parsed.years = Object.keys(years).map(Number).sort(function (a, b) { return b - a; });
+    candidates.push(parsed);
   });
-  return out;
+  return candidates;
 }
 
 function writeFile(index) {
-  var makes = Object.keys(index).sort();
   var ordered = {};
-  makes.forEach(function (m) { ordered[m] = index[m]; });
+  Object.keys(index).sort().forEach(function (m) { ordered[m] = index[m]; });
   fs.writeFileSync(OUT_PATH, "const VEHICLE_INDEX = " + JSON.stringify(ordered) + ";\n");
 }
 
 (async function () {
   try {
     var handles = await fetchAllHandles();
-    var candidates = candidatesFrom(handles);
-    console.log("Verifying " + candidates.length + " candidate collections...");
+    var candidates = build(handles);
+    console.log("Verifying " + candidates.length + " candidates (with year collections)...");
     var index = await enrich(candidates);
     var makes = Object.keys(index);
     var models = makes.reduce(function (n, m) { return n + index[m].length; }, 0);

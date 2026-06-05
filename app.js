@@ -190,12 +190,20 @@
     return null;
   }
 
-  function partsFor(year) {
-    if (!vehicleData || !vehicleData.partsByYear[year]) return [];
-    return Object.keys(vehicleData.partsByYear[year]).sort();
+  function yearsFor(make, model) {
+    var arr = VI[make] || [];
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i].model === model) return (arr[i].years || []).map(String);
+    }
+    return [];
   }
 
-  function fetchVehicle(handle) {
+  function yearHandle(make, model, year) {
+    var base = handleFor(make, model);
+    return base ? year + "-" + base : null;
+  }
+
+  function fetchYear(handle) {
     var products = [];
     function page(n) {
       return fetch(STORE_BASE + handle + "/products.json?limit=250&page=" + n)
@@ -211,30 +219,14 @@
         });
     }
     return page(1).then(function (all) {
-      var partsByYear = {}, countByYearPart = {}, productCountByYear = {};
+      var countByType = {}, total = 0;
       all.forEach(function (p) {
         var pt = (p.product_type || "").trim();
         if (!pt) return;
-        var tags = (p.tags || []).map(String);
-        var years = tags
-          .filter(function (t) { return t.indexOf("Year_") === 0; })
-          .map(function (t) { return parseInt(t.slice(5), 10); })
-          .filter(function (y) { return !isNaN(y); });
-        years.forEach(function (y) {
-          if (!partsByYear[y]) partsByYear[y] = {};
-          partsByYear[y][pt] = true;
-          if (!countByYearPart[y]) countByYearPart[y] = {};
-          countByYearPart[y][pt] = (countByYearPart[y][pt] || 0) + 1;
-          productCountByYear[y] = (productCountByYear[y] || 0) + 1;
-        });
+        countByType[pt] = (countByType[pt] || 0) + 1;
+        total += 1;
       });
-      var years = Object.keys(partsByYear).map(Number).sort(function (a, b) { return b - a; });
-      return {
-        years: years,
-        partsByYear: partsByYear,
-        countByYearPart: countByYearPart,
-        productCountByYear: productCountByYear,
-      };
+      return { parts: Object.keys(countByType).sort(), countByType: countByType, total: total };
     });
   }
 
@@ -252,28 +244,37 @@
       vehicleData = null;
       afterChange();
     } else if (changedStep === "model") {
-      loadModel();
-    } else if (changedStep === "year") {
-      combos.productType.setOptions(partsFor(combos.year.value));
+      combos.year.setOptions(yearsFor(combos.make.value, combos.model.value));
+      combos.productType.setOptions([]);
+      vehicleData = null;
       afterChange();
+    } else if (changedStep === "year") {
+      loadYear();
     } else {
       afterChange();
     }
   }
 
-  function loadModel() {
-    combos.year.setLoading();
-    combos.productType.setOptions([]);
+  function loadYear() {
+    combos.productType.setLoading();
     vehicleData = null;
     afterChange();
-    var handle = handleFor(combos.make.value, combos.model.value);
-    fetchVehicle(handle).then(function (data) {
-      vehicleData = data;
-      combos.year.setOptions(data.years.map(String));
+    var handle = yearHandle(combos.make.value, combos.model.value, combos.year.value);
+    fetchYear(handle).then(function (data) {
+      if (data.total === 0) {
+        vehicleData = null;
+        combos.productType.setOptions([]);
+        status.textContent = "No parts listed for this year yet.";
+      } else {
+        vehicleData = data;
+        combos.productType.setOptions(data.parts);
+        status.textContent = "";
+      }
       afterChange();
     }).catch(function () {
-      combos.year.setOptions([]);
-      status.textContent = "Couldn't load parts for that vehicle. Please try again.";
+      vehicleData = null;
+      combos.productType.setOptions([]);
+      status.textContent = "Couldn't load parts for that year. Please try again.";
       afterChange();
     });
   }
@@ -291,10 +292,8 @@
       count.textContent = "";
       return;
     }
-    var y = combos.year.value;
     var pt = combos.productType.value;
-    var n = pt ? ((vehicleData.countByYearPart[y] || {})[pt] || 0)
-               : (vehicleData.productCountByYear[y] || 0);
+    var n = pt ? (vehicleData.countByType[pt] || 0) : vehicleData.total;
     count.textContent = n + (n === 1 ? " part fits your " : " parts fit your ") +
       [combos.year.value, combos.make.value, combos.model.value].join(" ");
   }
@@ -347,39 +346,45 @@
     if (!state.model || models.indexOf(state.model) === -1) { afterChange(); return; }
     combos.model.value = state.model;
     combos.model.input.value = state.model;
+    var years = yearsFor(state.make, state.model);
+    combos.year.setOptions(years);
 
-    combos.year.setLoading();
+    if (!state.year || years.indexOf(String(state.year)) === -1) { afterChange(); return; }
+    combos.year.value = String(state.year);
+    combos.year.input.value = String(state.year);
+
+    combos.productType.setLoading();
     afterChange();
-    fetchVehicle(handleFor(state.make, state.model)).then(function (data) {
+    fetchYear(yearHandle(state.make, state.model, state.year)).then(function (data) {
+      if (data.total === 0) {
+        vehicleData = null;
+        combos.productType.setOptions([]);
+        status.textContent = "No parts listed for this year yet.";
+        afterChange();
+        return;
+      }
       vehicleData = data;
-      var years = data.years.map(String);
-      combos.year.setOptions(years);
-      if (state.year && years.indexOf(String(state.year)) !== -1) {
-        combos.year.value = String(state.year);
-        combos.year.input.value = String(state.year);
-        var parts = partsFor(state.year);
-        combos.productType.setOptions(parts);
-        if (state.productType && parts.indexOf(state.productType) !== -1) {
-          combos.productType.value = state.productType;
-          combos.productType.input.value = state.productType;
-        }
+      combos.productType.setOptions(data.parts);
+      if (state.productType && data.parts.indexOf(state.productType) !== -1) {
+        combos.productType.value = state.productType;
+        combos.productType.input.value = state.productType;
       }
       afterChange();
     }).catch(function () {
-      combos.year.setOptions([]);
+      vehicleData = null;
+      combos.productType.setOptions([]);
       status.textContent = "Couldn't load that vehicle.";
       afterChange();
     });
   }
 
   function buildUrl() {
-    var handle = handleFor(combos.make.value, combos.model.value);
-    var url = STORE_BASE + handle;
-    var params = new URLSearchParams();
-    if (combos.year.value) params.set("filter.p.tag", "Year_" + combos.year.value);
-    if (combos.productType.value) params.set("filter.p.product_type", combos.productType.value);
-    var query = params.toString();
-    if (query) url += "?" + query;
+    var url = STORE_BASE + yearHandle(combos.make.value, combos.model.value, combos.year.value);
+    if (combos.productType.value) {
+      var params = new URLSearchParams();
+      params.set("filter.p.product_type", combos.productType.value);
+      url += "?" + params.toString();
+    }
     return url;
   }
 
