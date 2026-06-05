@@ -113,46 +113,29 @@ body {
   vertical-align: middle;
 }
 
-.finder__modes {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-  padding: 4px;
-  background: var(--disabled);
-  border-radius: 8px;
+.vin {
+  margin-top: 12px;
+  text-align: right;
 }
 
-.finder__mode {
-  flex: 1;
-  padding: 8px 10px;
+.vin__toggle {
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  color: var(--muted);
-  background: transparent;
+  color: var(--accent-dark);
+  background: none;
   border: none;
-  border-radius: 6px;
+  padding: 4px 2px;
   cursor: pointer;
 }
 
-.finder__mode.is-active {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+.vin__toggle:hover {
+  text-decoration: underline;
 }
 
-.vinbox {
-  margin-bottom: 22px;
-}
-
-.vinbox label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+.vin__panel {
+  margin-top: 10px;
+  text-align: left;
 }
 
 .vinbox__row {

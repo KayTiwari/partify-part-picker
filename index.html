@@ -32,22 +32,6 @@
       </div>
     </div>
 
-    <div class="finder__modes" role="tablist" aria-label="Search mode">
-      <button type="button" class="finder__mode is-active" data-mode="vehicle" aria-selected="true">By vehicle</button>
-      <button type="button" class="finder__mode" data-mode="vin" aria-selected="false">By VIN</button>
-    </div>
-
-    <div class="vinbox" id="vinbox" hidden>
-      <label for="vin-input">VIN</label>
-      <div class="vinbox__row">
-        <input class="vinbox__input" id="vin-input" type="text" maxlength="17"
-          autocomplete="off" autocapitalize="characters" spellcheck="false"
-          placeholder="17-character VIN">
-        <button type="button" class="vinbox__btn" id="vin-go">Find</button>
-      </div>
-      <p class="vinbox__msg" id="vin-msg" role="status" aria-live="polite"></p>
-    </div>
-
     <form id="fitment-form" class="finder__form" novalidate>
       <div class="field">
         <label id="make-label" for="make-input">Make</label>
@@ -93,6 +77,19 @@
 
       <button type="submit" id="submit" class="finder__submit" disabled>Shop parts</button>
       <button type="button" id="reset" class="finder__reset" hidden>Clear form</button>
+
+      <div class="vin">
+        <button type="button" class="vin__toggle" id="vin-toggle" aria-expanded="false">Have your VIN? Enter it</button>
+        <div class="vin__panel" id="vinbox" hidden>
+          <div class="vinbox__row">
+            <input class="vinbox__input" id="vin-input" type="text" maxlength="17"
+              autocomplete="off" autocapitalize="characters" spellcheck="false"
+              placeholder="17-character VIN">
+            <button type="button" class="vinbox__btn" id="vin-go">Find</button>
+          </div>
+          <p class="vinbox__msg" id="vin-msg" role="status" aria-live="polite"></p>
+        </div>
+      </div>
     </form>
 
     <p id="status" class="finder__status" role="status" aria-live="polite"></p>

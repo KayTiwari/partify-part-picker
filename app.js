@@ -462,7 +462,6 @@
 
   document.getElementById("garage-use").addEventListener("click", function () {
     if (savedVehicle) {
-      setMode("vehicle");
       applyState({
         make: savedVehicle.make,
         model: savedVehicle.model,
@@ -504,19 +503,7 @@
   var vinInput = document.getElementById("vin-input");
   var vinGo = document.getElementById("vin-go");
   var vinMsg = document.getElementById("vin-msg");
-  var modeButtons = Array.prototype.slice.call(document.querySelectorAll(".finder__mode"));
-
-  function setMode(mode) {
-    var isVehicle = mode === "vehicle";
-    form.hidden = !isVehicle;
-    vinbox.hidden = isVehicle;
-    modeButtons.forEach(function (b) {
-      var on = b.getAttribute("data-mode") === mode;
-      b.classList.toggle("is-active", on);
-      b.setAttribute("aria-selected", on ? "true" : "false");
-    });
-    if (!isVehicle) vinInput.focus();
-  }
+  var vinToggle = document.getElementById("vin-toggle");
 
   function prettyMake(s) {
     return String(s).toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
@@ -569,7 +556,8 @@
         }
         vinMsg.textContent = "";
         applyState(matched);
-        setMode("vehicle");
+        vinbox.hidden = true;
+        vinToggle.setAttribute("aria-expanded", "false");
       })
       .catch(function () {
         vinGo.disabled = false;
@@ -577,8 +565,11 @@
       });
   }
 
-  modeButtons.forEach(function (b) {
-    b.addEventListener("click", function () { setMode(b.getAttribute("data-mode")); });
+  vinToggle.addEventListener("click", function () {
+    var show = vinbox.hidden;
+    vinbox.hidden = !show;
+    vinToggle.setAttribute("aria-expanded", show ? "true" : "false");
+    if (show) vinInput.focus();
   });
   vinGo.addEventListener("click", lookupVin);
   vinInput.addEventListener("keydown", function (e) {
@@ -591,7 +582,6 @@
     });
   });
 
-  setMode("vehicle");
   combos.make.setOptions(makesList());
   var initial = readUrlState();
   if (Object.keys(initial).length) {
