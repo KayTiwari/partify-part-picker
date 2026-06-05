@@ -40,7 +40,6 @@ body {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 32px;
-  overflow: hidden;
   box-shadow: 0 6px 24px rgba(12, 34, 69, 0.10);
 }
 
@@ -51,6 +50,7 @@ body {
   right: 0;
   height: 5px;
   background: linear-gradient(90deg, var(--navy), var(--accent));
+  border-radius: 8px 8px 0 0;
 }
 
 .finder__tag {
