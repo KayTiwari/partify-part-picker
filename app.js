@@ -293,9 +293,14 @@
       return;
     }
     var pt = combos.productType.value;
-    var n = pt ? (vehicleData.countByType[pt] || 0) : vehicleData.total;
-    count.textContent = n + (n === 1 ? " part fits your " : " parts fit your ") +
-      [combos.year.value, combos.make.value, combos.model.value].join(" ");
+    var vehicle = [combos.year.value, combos.make.value, combos.model.value].join(" ");
+    if (pt) {
+      var c = vehicleData.countByType[pt] || 0;
+      count.textContent = c + " " + pt + (c === 1 ? " option for your " : " options for your ") + vehicle;
+    } else {
+      var t = vehicleData.total;
+      count.textContent = t + (t === 1 ? " part fits your " : " parts fit your ") + vehicle;
+    }
   }
 
   function syncUrl() {
