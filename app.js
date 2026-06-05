@@ -17,6 +17,7 @@
 
   var VI = (typeof VEHICLE_INDEX !== "undefined") ? VEHICLE_INDEX : {};
   var vehicleData = null;
+  var loadToken = 0;
 
   function Combobox(root, onCommit) {
     this.root = root;
@@ -231,6 +232,7 @@
   }
 
   function onCommit(changedStep) {
+    loadToken++;
     var startIndex = STEPS.indexOf(changedStep) + 1;
     for (var i = startIndex; i < STEPS.length; i++) {
       combos[STEPS[i]].clear();
@@ -256,11 +258,13 @@
   }
 
   function loadYear() {
+    var token = loadToken;
     combos.productType.setLoading();
     vehicleData = null;
     afterChange();
     var handle = yearHandle(combos.make.value, combos.model.value, combos.year.value);
     fetchYear(handle).then(function (data) {
+      if (token !== loadToken) return;
       if (data.total === 0) {
         vehicleData = null;
         combos.productType.setOptions([]);
@@ -272,6 +276,7 @@
       }
       afterChange();
     }).catch(function () {
+      if (token !== loadToken) return;
       vehicleData = null;
       combos.productType.setOptions([]);
       status.textContent = "Couldn't load parts for that year. Please try again.";
@@ -335,6 +340,7 @@
   }
 
   function applyState(state) {
+    var token = ++loadToken;
     STEPS.forEach(function (step) { combos[step].clear(); });
     combos.make.setOptions(makesList());
     combos.model.setOptions([]);
@@ -361,6 +367,7 @@
     combos.productType.setLoading();
     afterChange();
     fetchYear(yearHandle(state.make, state.model, state.year)).then(function (data) {
+      if (token !== loadToken) return;
       if (data.total === 0) {
         vehicleData = null;
         combos.productType.setOptions([]);
@@ -376,6 +383,7 @@
       }
       afterChange();
     }).catch(function () {
+      if (token !== loadToken) return;
       vehicleData = null;
       combos.productType.setOptions([]);
       status.textContent = "Couldn't load that vehicle.";
