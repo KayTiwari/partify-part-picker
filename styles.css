@@ -113,6 +113,99 @@ body {
   vertical-align: middle;
 }
 
+.finder__modes {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 4px;
+  background: var(--disabled);
+  border-radius: 8px;
+}
+
+.finder__mode {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.finder__mode.is-active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.vinbox {
+  margin-bottom: 22px;
+}
+
+.vinbox label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.vinbox__row {
+  display: flex;
+  gap: 8px;
+}
+
+.vinbox__input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.vinbox__input:focus {
+  outline: none;
+  border-color: var(--line-focus);
+  box-shadow: 0 0 0 3px rgba(41, 182, 232, 0.2);
+}
+
+.vinbox__btn {
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: var(--cta);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.vinbox__btn:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.vinbox__btn:disabled {
+  background: var(--line);
+  cursor: not-allowed;
+}
+
+.vinbox__msg {
+  margin: 10px 0 0;
+  min-height: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .field {
   margin-bottom: 16px;
 }

@@ -462,6 +462,7 @@
 
   document.getElementById("garage-use").addEventListener("click", function () {
     if (savedVehicle) {
+      setMode("vehicle");
       applyState({
         make: savedVehicle.make,
         model: savedVehicle.model,
@@ -499,12 +500,98 @@
     window.open(url, "_blank", "noopener");
   });
 
+  var vinbox = document.getElementById("vinbox");
+  var vinInput = document.getElementById("vin-input");
+  var vinGo = document.getElementById("vin-go");
+  var vinMsg = document.getElementById("vin-msg");
+  var modeButtons = Array.prototype.slice.call(document.querySelectorAll(".finder__mode"));
+
+  function setMode(mode) {
+    var isVehicle = mode === "vehicle";
+    form.hidden = !isVehicle;
+    vinbox.hidden = isVehicle;
+    modeButtons.forEach(function (b) {
+      var on = b.getAttribute("data-mode") === mode;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    if (!isVehicle) vinInput.focus();
+  }
+
+  function prettyMake(s) {
+    return String(s).toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+
+  function matchVin(make, model, year) {
+    var out = {};
+    if (!make) return out;
+    var makes = makesList();
+    var lowMake = String(make).toLowerCase();
+    for (var i = 0; i < makes.length; i++) {
+      if (makes[i].toLowerCase() === lowMake) { out.make = makes[i]; break; }
+    }
+    if (!out.make) return out;
+    var models = VI[out.make] || [];
+    var lowModel = String(model || "").toLowerCase();
+    for (var j = 0; j < models.length; j++) {
+      if (models[j].model.toLowerCase() === lowModel) { out.model = models[j].model; break; }
+    }
+    if (!out.model && lowModel) {
+      for (var k = 0; k < models.length; k++) {
+        var a = models[k].model.toLowerCase();
+        if (a.indexOf(lowModel) !== -1 || lowModel.indexOf(a) !== -1) { out.model = models[k].model; break; }
+      }
+    }
+    if (!out.model) return out;
+    var years = yearsFor(out.make, out.model);
+    if (year && years.indexOf(String(year)) !== -1) out.year = String(year);
+    return out;
+  }
+
+  function lookupVin() {
+    var vin = vinInput.value.trim().toUpperCase();
+    if (vin.length !== 17) { vinMsg.textContent = "A VIN is 17 characters."; return; }
+    vinMsg.textContent = "Looking up…";
+    vinGo.disabled = true;
+    fetch("https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/" + encodeURIComponent(vin) + "?format=json")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        vinGo.disabled = false;
+        var res = (data.Results && data.Results[0]) || {};
+        if (!res.Make) {
+          vinMsg.textContent = "Couldn't read that VIN. Double-check and try again.";
+          return;
+        }
+        var matched = matchVin(res.Make, res.Model, res.ModelYear);
+        if (!matched.make) {
+          vinMsg.textContent = "We don't carry parts for " + prettyMake(res.Make) + " yet.";
+          return;
+        }
+        vinMsg.textContent = "";
+        applyState(matched);
+        setMode("vehicle");
+      })
+      .catch(function () {
+        vinGo.disabled = false;
+        vinMsg.textContent = "Lookup failed. Please try again.";
+      });
+  }
+
+  modeButtons.forEach(function (b) {
+    b.addEventListener("click", function () { setMode(b.getAttribute("data-mode")); });
+  });
+  vinGo.addEventListener("click", lookupVin);
+  vinInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); lookupVin(); }
+  });
+
   document.addEventListener("mousedown", function (e) {
     STEPS.forEach(function (step) {
       if (!combos[step].root.contains(e.target)) combos[step].close();
     });
   });
 
+  setMode("vehicle");
   combos.make.setOptions(makesList());
   var initial = readUrlState();
   if (Object.keys(initial).length) {
