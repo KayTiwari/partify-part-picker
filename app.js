@@ -299,13 +299,22 @@
     submit.disabled = !vehicleChosen();
   }
 
+  function nextHint() {
+    if (!combos.make.value) return "Select a make to get started.";
+    if (!combos.model.value) return "Select a model.";
+    if (!combos.year.value) return "Select a year.";
+    return "";
+  }
+
   function updateCount() {
+    count.classList.remove("finder__count--hint");
     if (noPartsForYear) {
       count.textContent = "No parts listed for this year yet.";
       return;
     }
     if (!vehicleChosen()) {
-      count.textContent = "";
+      count.textContent = nextHint();
+      count.classList.add("finder__count--hint");
       return;
     }
     var pt = combos.productType.value;

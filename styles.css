@@ -154,6 +154,14 @@ body {
 .combo__input:focus {
   outline: none;
   border-color: var(--line-focus);
+  box-shadow: 0 0 0 3px rgba(41, 182, 232, 0.2);
+}
+
+.finder__submit:focus-visible,
+.finder__reset:focus-visible,
+.garage__btn:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
 }
 
 .combo__input:disabled {
@@ -219,6 +227,11 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent-dark);
+}
+
+.finder__count--hint {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .finder__submit {
@@ -328,6 +341,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .garage__label::before { animation: none; }
   .finder__brandbar { animation: none; }
+}
+
+@media (max-width: 520px) {
+  body {
+    padding: 12px;
+    align-items: flex-start;
+  }
+  .finder {
+    padding: 24px 18px;
+  }
 }
 
 .garage__vehicle {
