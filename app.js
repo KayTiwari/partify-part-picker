@@ -74,7 +74,9 @@
     this.list.hidden = false;
     this.input.setAttribute("aria-expanded", "true");
     this.activeIndex = this.filtered.length ? 0 : -1;
-    if (this.filtered[0] === "" && this.filtered.length > 1) this.activeIndex = 1;
+    var selIdx = this.filtered.indexOf(this.value);
+    if (selIdx !== -1) this.activeIndex = selIdx;
+    else if (this.filtered[0] === "" && this.filtered.length > 1) this.activeIndex = 1;
     this.highlight();
   };
 
@@ -98,6 +100,10 @@
       li.addEventListener("mousedown", function (e) {
         e.preventDefault();
         self.commit(value);
+      });
+      li.addEventListener("mouseenter", function () {
+        self.activeIndex = i;
+        self.highlight();
       });
       self.list.appendChild(li);
     });
