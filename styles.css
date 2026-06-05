@@ -49,8 +49,15 @@ body {
   left: 0;
   right: 0;
   height: 5px;
-  background: linear-gradient(90deg, var(--navy), var(--accent));
+  background: linear-gradient(90deg, var(--navy), var(--accent), var(--navy));
+  background-size: 200% 100%;
   border-radius: 8px 8px 0 0;
+  animation: brandbar-slide 4s linear infinite;
+}
+
+@keyframes brandbar-slide {
+  from { background-position: 0% 0; }
+  to { background-position: -200% 0; }
 }
 
 .finder__tag {
@@ -320,6 +327,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .garage__label::before { animation: none; }
+  .finder__brandbar { animation: none; }
 }
 
 .garage__vehicle {
