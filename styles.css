@@ -224,11 +224,11 @@ body {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .finder__submit:hover:not(:disabled) {
-  background: linear-gradient(90deg, var(--navy), var(--accent));
+  background: var(--accent-dark);
   box-shadow: 0 4px 14px rgba(41, 182, 232, 0.4);
 }
 
